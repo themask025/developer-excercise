@@ -22,7 +22,7 @@ class CLI:
             print(dedent(actions_info))
 
             user_action = input("Please choose an action (using numbers):")
-            print("\n")
+            print()
 
             match user_action:
                 case '1':
@@ -31,6 +31,8 @@ class CLI:
                     self.configure_till()
                 case '3':
                     break
+                case _:
+                    print("Invalid action.\n")
 
         print("Exiting the system...")
 
@@ -50,7 +52,7 @@ class CLI:
             print(dedent(actions_info))
 
             user_action = input("Please choose an action (using numbers):")
-            print("\n")
+            print()
 
             match user_action:
                 case '1':
@@ -62,6 +64,8 @@ class CLI:
                 case '3':
                     print("Emptying basket...\n")
                     break
+                case _:
+                    print("Invalid action.\n")
 
         print("Returning to main menu...\n")
 
@@ -104,7 +108,7 @@ class CLI:
             print(dedent(actions_info))
 
             user_action = input("Please choose an action (using numbers):")
-            print("\n")
+            print()
 
             match user_action:
                 case '1':
@@ -126,3 +130,5 @@ class CLI:
                 case '9':
                     print("Returning to main menu...")
                     break
+                case _:
+                    print("Invalid action.\n")
