@@ -1,5 +1,7 @@
 from textwrap import dedent
+
 from system import System
+from item import Item
 
 
 class CLI:
@@ -57,7 +59,6 @@ class CLI:
             match user_action:
                 case '1':
                     self.scan_items()
-                    # update running total
                 case '2':
                     self.finalize()
                     break
@@ -75,8 +76,6 @@ class CLI:
         items = items_input.split(',')
         items = list(map(lambda item: item.strip(), items))
 
-        # System.basket.validate_items(items)
-        # System.basket.add_items(items)
 
         print("Scanning items...\n")
 
@@ -114,11 +113,11 @@ class CLI:
                 case '1':
                     self.system.view_catalog_items()
                 case '2':
-                    self.system.add_item_to_catalog()
+                    self.add_catalog_item_handler()
                 case '3':
-                    self.system.edit_catalog_item()
+                    self.update_catalog_item_handler()
                 case '4':
-                    self.system.remove_catalog_item()
+                    self.remove_catalog_item_handler()
                 case '5':
                     self.system.view_discounts()
                 case '6':
@@ -132,3 +131,50 @@ class CLI:
                     break
                 case _:
                     print("Invalid action.\n")
+
+    def add_catalog_item_handler(self) -> None:
+        item_input = input(
+            "Please enter item name, price (in clouds) and category, separated with commas:\n")
+        item_input = item_input.split(',')
+        item_input = list(
+            map(lambda item: item.strip(), item_input))
+        
+        if len(item_input) < 3:
+            print("Invalid input: not enough arguments provided")
+            return
+        
+        name, price, category = item_input
+        try:
+            self.system.add_catalog_item(name, price, category)
+        except ValueError as e:
+            print(e)
+
+    def update_catalog_item_handler(self) -> None:
+        item_input = input(
+            "Please enter information in the format:\n \
+            \"<current item name>, <new name>, <new price>, <new category>\"\n \
+            (type \"-\" for a field to leave it unchanged):")
+        item_input = item_input.split(',')
+        item_input = list(
+            map(lambda item: item.strip(), item_input))
+        
+        if len(item_input) < 4:
+            print("Invalid input: not enough arguments provided")
+            return
+        
+        name, new_name, new_price, new_category = item_input
+        try:
+            self.system.update_catalog_item(
+                name, new_name, new_price, new_category)
+        except ValueError as e:
+            print(e)
+            
+    def remove_catalog_item_handler(self) -> None:
+        name = input("Please enter the name of the item to remove:\n")
+
+        try:
+            self.system.remove_catalog_item(name)
+        except ValueError as e:
+            print(e)
+            
+    
