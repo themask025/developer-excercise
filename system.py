@@ -16,7 +16,7 @@ class System:
         if name in items_names:
             raise ValueError(
                 "Cannot add the item: an item with the same name already exists.")
-        if price.isnumeric() == False:
+        if not price.isnumeric():
             raise ValueError(
                 "Cannot add the item: invalid item price."
             )
@@ -39,7 +39,7 @@ class System:
         if new_category != '-':
             item.category = new_category
         if new_price != '-':
-            if new_price.isnumeric() == False:
+            if not new_price.isnumeric():
                 raise ValueError("Cannot update item info: invalid new price.")
             item.normal_price = int(new_price)
             
@@ -61,10 +61,16 @@ class System:
         print()
 
     def view_discounts(self) -> None:
-        pass
+        if len(self.discounts) == 0:
+            print("No active discounts.")
+            return
+        
+        print("Active discounts:")
+        for discount in self.discounts:
+            discount.print_info()       
 
-    def add_discount(self) -> None:
-        pass
+    def add_discount(self, discount) -> None:
+        self.discounts.append(discount)
 
     def edit_discount(self) -> None:
         pass

@@ -2,6 +2,7 @@ from textwrap import dedent
 
 from system import System
 from item import Item
+from discounts import BundleDiscount
 
 
 class CLI:
@@ -73,9 +74,7 @@ class CLI:
     def scan_items(self) -> None:
         items_input = input(
             "List names of items to scan (separated with commas):")
-        items = items_input.split(',')
-        items = list(map(lambda item: item.strip(), items))
-
+        items = self.process_input(items_input)
 
         print("Scanning items...\n")
 
@@ -111,7 +110,7 @@ class CLI:
 
             match user_action:
                 case '1':
-                    self.system.view_catalog_items()
+                    self.view_catalog_items_handler()
                 case '2':
                     self.add_catalog_item_handler()
                 case '3':
@@ -119,30 +118,31 @@ class CLI:
                 case '4':
                     self.remove_catalog_item_handler()
                 case '5':
-                    self.system.view_discounts()
+                    self.view_discounts_handler()
                 case '6':
-                    self.system.add_discount()
+                    self.add_discount_handler()
                 case '7':
-                    self.system.edit_discount()
+                    self.edit_discount_handler()
                 case '8':
-                    self.system.remove_discount()
+                    self.remove_discount_handler()
                 case '9':
                     print("Returning to main menu...")
                     break
                 case _:
                     print("Invalid action.\n")
 
+    def view_catalog_items_handler(self) -> None:
+        self.system.view_catalog_items()
+
     def add_catalog_item_handler(self) -> None:
         item_input = input(
             "Please enter item name, price (in clouds) and category, separated with commas:\n")
-        item_input = item_input.split(',')
-        item_input = list(
-            map(lambda item: item.strip(), item_input))
-        
+        item_input = self.process_input(item_input)
+
         if len(item_input) < 3:
             print("Invalid input: not enough arguments provided")
             return
-        
+
         name, price, category = item_input
         try:
             self.system.add_catalog_item(name, price, category)
@@ -157,18 +157,18 @@ class CLI:
         item_input = item_input.split(',')
         item_input = list(
             map(lambda item: item.strip(), item_input))
-        
+
         if len(item_input) < 4:
             print("Invalid input: not enough arguments provided")
             return
-        
+
         name, new_name, new_price, new_category = item_input
         try:
             self.system.update_catalog_item(
                 name, new_name, new_price, new_category)
         except ValueError as e:
             print(e)
-            
+
     def remove_catalog_item_handler(self) -> None:
         name = input("Please enter the name of the item to remove:\n")
 
@@ -176,5 +176,91 @@ class CLI:
             self.system.remove_catalog_item(name)
         except ValueError as e:
             print(e)
-            
-    
+
+    def view_discounts_handler(self) -> None:
+        self.system.view_discounts()
+
+    def add_discount_handler(self) -> None:
+        type = input("Please enter discount type (bundle, progressive, bulk):")
+
+        match type:
+            case "bundle":
+                self.add_bundle_discount()
+            case "progressive":
+                pass
+            case "bulk":
+                pass
+            case _:
+                print("Invalid discount type.")
+                return
+
+    def add_bundle_discount(self) -> None:
+        prompt = """\
+            Please enter X(number of items threshold), Y(number of items to pay for)
+            and the items in the first bundle, all separated with commas:
+        """
+        discount_input = input(dedent(prompt))
+        discount_input = self.process_input(discount_input)
+        threshold, quantity_to_pay, *bundle = discount_input
+
+        if not self.validate_bundle_discount_parameters(threshold, quantity_to_pay, bundle):
+            return
+
+        bundles = [bundle]
+
+        choice = input("Do you wish to add more bundles? [y/N]")
+        self.add_additional_bundles(choice, current_bundles=bundles)
+        
+        discount = BundleDiscount(bundles, int(threshold), int(quantity_to_pay))
+        self.system.add_discount(discount)
+
+    def validate_bundle_discount_parameters(self, threshold: str, quantity_to_pay: str, bundle: list[str]) -> bool:
+        if not threshold.isnumeric():
+            print("Invalid threshold value.")
+            return False
+        if not quantity_to_pay.isnumeric():
+            print("Invalid number of items to pay for.")
+            return False
+        if not self.validate_bundle_items_existence(bundle):
+            return False
+        return True
+
+    def add_additional_bundles(self, choice: str, current_bundles: list[list[str]]) -> None:
+        while choice in ["y", "yes"]:
+            bundle_input = input(
+                "Please enter bundle items' names, separated with commas:")
+            bundle = self.process_input(bundle_input)
+            if not self.validate_bundle_items_existence(bundle):
+                return
+            if self.validate_bundle_items_uniqueness(bundle, current_bundles):
+                current_bundles.append(bundle)
+            choice = input("Do you wish to add more bundles? [y/N]")
+
+    def validate_bundle_items_existence(self, bundle: list[str]) -> bool:
+        items_names = list(map(lambda item: item.name, self.system.items))
+        non_existent_items = [
+            name for name in bundle if name not in items_names]
+        if non_existent_items:
+            print(
+                f"Cannot add discount: items \"{non_existent_items}\" do not exist.")
+            return False
+        return True
+
+    def validate_bundle_items_uniqueness(self, bundle, bundles):
+        existing_bundles_items = [
+            item for bundle in bundles for item in bundle]
+        common_items = [
+            item for item in bundle if item in existing_bundles_items]
+        if common_items:
+            print(f"Cannot add bundle: it overlaps with an existing one")
+            return False
+        return True
+
+    def edit_discount_handler(self):
+        pass
+
+    def remove_discount_handler(self):
+        pass
+
+    def process_input(self, input: str) -> list[str]:
+        return list(map(lambda input_part: input_part.strip(), input.split(',')))
