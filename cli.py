@@ -2,7 +2,8 @@ from textwrap import dedent
 
 from system import System
 from item import Item
-from discounts import BundleDiscount
+from discounts import Discount, BundleDiscount, ProgressiveDiscount, BulkDiscount
+import discounts
 
 
 class CLI:
@@ -38,6 +39,10 @@ class CLI:
                     print("Invalid action.\n")
 
         print("Exiting the system...")
+
+
+
+
 
     def begin_scanning(self) -> None:
         running_total = 0
@@ -80,6 +85,10 @@ class CLI:
 
     def finalize(self) -> None:
         print("Finalizing...\n")
+
+
+
+
 
     def configure_till(self) -> None:
         print("Configuring till...\n")
@@ -135,9 +144,8 @@ class CLI:
         self.system.view_catalog_items()
 
     def add_catalog_item_handler(self) -> None:
-        item_input = input(
-            "Please enter item name, price (in clouds) and category, separated with commas:\n")
-        item_input = self.process_input(item_input)
+        prompt = "Please enter item name, price (in clouds) and category, separated with commas:\n"
+        item_input = self.get_processed_input(prompt)
 
         if len(item_input) < 3:
             print("Invalid input: not enough arguments provided")
@@ -150,13 +158,12 @@ class CLI:
             print(e)
 
     def update_catalog_item_handler(self) -> None:
-        item_input = input(
-            "Please enter information in the format:\n \
-            \"<current item name>, <new name>, <new price>, <new category>\"\n \
-            (type \"-\" for a field to leave it unchanged):")
-        item_input = item_input.split(',')
-        item_input = list(
-            map(lambda item: item.strip(), item_input))
+        prompt = """\
+            Please enter information in the format:
+            "<current item name>, <new name>, <new price>, <new category>
+            (type \"-\" for a field to leave it unchanged):\
+            """
+        item_input = self.get_processed_input(prompt)
 
         if len(item_input) < 4:
             print("Invalid input: not enough arguments provided")
@@ -177,90 +184,320 @@ class CLI:
         except ValueError as e:
             print(e)
 
+
+
     def view_discounts_handler(self) -> None:
         self.system.view_discounts()
 
+
+
+
     def add_discount_handler(self) -> None:
         type = input("Please enter discount type (bundle, progressive, bulk):")
+        type = type.strip()
 
         match type:
             case "bundle":
                 self.add_bundle_discount()
             case "progressive":
-                pass
+                self.add_progressive_discount()
             case "bulk":
-                pass
+                self.add_bulk_discount()
             case _:
                 print("Invalid discount type.")
                 return
 
+
     def add_bundle_discount(self) -> None:
         prompt = """\
-            Please enter X(number of items threshold), Y(number of items to pay for)
-            and the items in the first bundle, all separated with commas:
+            Please enter X(number of items threshold)
+            and Y(number of items to pay for), separated with commas:\n
         """
-        discount_input = input(dedent(prompt))
-        discount_input = self.process_input(discount_input)
-        threshold, quantity_to_pay, *bundle = discount_input
-
-        if not self.validate_bundle_discount_parameters(threshold, quantity_to_pay, bundle):
-            return
-
-        bundles = [bundle]
-
-        choice = input("Do you wish to add more bundles? [y/N]")
-        self.add_additional_bundles(choice, current_bundles=bundles)
+        discount_input = self.get_processed_input(prompt)
         
-        discount = BundleDiscount(bundles, int(threshold), int(quantity_to_pay))
+        print(discount_input)
+        
+        if not self.validate_bundle_discount_numeric_input(discount_input):
+            return
+        threshold, quantity_to_pay = discount_input
+        bundles = self.add_bundles()
+
+        discount = BundleDiscount(bundles, int(
+            threshold), int(quantity_to_pay))
         self.system.add_discount(discount)
 
-    def validate_bundle_discount_parameters(self, threshold: str, quantity_to_pay: str, bundle: list[str]) -> bool:
+    def validate_bundle_discount_numeric_input(self, discount_input: list[str]) -> bool:
+        if not self.validate_number_of_arguments(discount_input, 2):
+            return False
+        threshold, quantity_to_pay = discount_input
+        return self.validate_threshold(threshold) and self.validate_quantity_to_pay(quantity_to_pay)
+
+    def validate_number_of_arguments(self, arguments: list[str], count: int) -> bool:
+        if len(arguments) != count:
+            print("Invalid input: not enough arguments provided")
+            return False
+        return True
+
+    def validate_threshold(self, threshold: str) -> bool:
         if not threshold.isnumeric():
             print("Invalid threshold value.")
             return False
+        return True
+
+    def validate_quantity_to_pay(self, quantity_to_pay: str) -> bool:
         if not quantity_to_pay.isnumeric():
             print("Invalid number of items to pay for.")
             return False
-        if not self.validate_bundle_items_existence(bundle):
-            return False
         return True
 
-    def add_additional_bundles(self, choice: str, current_bundles: list[list[str]]) -> None:
+    def add_bundles(self) -> list[list[str]]:
+        bundles = []
+        choice = "y"
         while choice in ["y", "yes"]:
-            bundle_input = input(
-                "Please enter bundle items' names, separated with commas:")
-            bundle = self.process_input(bundle_input)
-            if not self.validate_bundle_items_existence(bundle):
-                return
-            if self.validate_bundle_items_uniqueness(bundle, current_bundles):
-                current_bundles.append(bundle)
+            prompt = "Please enter new bundle items' names, separated with commas:"
+            bundle = self.get_processed_input(prompt)
+            if self.validate_bundle(bundle, bundles):
+                bundles.append(bundle)
+                print("Bundle added successfully.")
+            else:
+                print("Could not add bundle.")
             choice = input("Do you wish to add more bundles? [y/N]")
+        return bundles
 
-    def validate_bundle_items_existence(self, bundle: list[str]) -> bool:
-        items_names = list(map(lambda item: item.name, self.system.items))
-        non_existent_items = [
-            name for name in bundle if name not in items_names]
-        if non_existent_items:
+    def validate_bundle(self, bundle, existing_bundles) -> bool:
+        if len(bundle) == 0:
+            print("Bundle cannot be empty.")
+            return False
+
+        return self.validate_items_existence(bundle) and \
+            self.validate_bundle_items_uniqueness(bundle, existing_bundles)
+
+    def validate_items_existence(self, items: list[str]) -> bool:
+        existing_names = list(map(lambda item: item.name, self.system.items))
+        nonexistent_items = [
+            name for name in items if name not in existing_names]
+        if nonexistent_items:
             print(
-                f"Cannot add discount: items \"{non_existent_items}\" do not exist.")
+                f"Cannot add discount: items \"{nonexistent_items}\" do not exist.")
             return False
         return True
 
-    def validate_bundle_items_uniqueness(self, bundle, bundles):
+    def validate_bundle_items_uniqueness(self, current_bundle: list[str], existing_bundles: list[list[str]]) -> bool:
         existing_bundles_items = [
-            item for bundle in bundles for item in bundle]
+            item for bundle in existing_bundles for item in bundle]
         common_items = [
-            item for item in bundle if item in existing_bundles_items]
+            item for item in current_bundle if item in existing_bundles_items]
         if common_items:
             print(f"Cannot add bundle: it overlaps with an existing one")
             return False
         return True
 
+
+
+    def add_progressive_discount(self) -> None:
+        prompt = """\
+            Please enter X(number of items threshold), Y(percentage off next item's price)
+            and the item for which to apply the discount:
+        """
+        discount_input = self.get_processed_input(prompt)
+        if not self.validate_progressive_discount_input(discount_input):
+            return
+
+        threshold, percentage_off_next, item = discount_input
+        discount = ProgressiveDiscount(
+            item, int(threshold), int(percentage_off_next))
+        self.system.add_discount(discount)
+
+    def validate_progressive_discount_input(self, discount_input):
+        if not self.validate_number_of_arguments(discount_input, 3):
+            return False
+
+        threshold, percentage_off_next, item = discount_input
+
+        return self.validate_threshold(threshold) and \
+            self.validate_percentage_input(percentage_off_next) and \
+            self.validate_items_existence([item])
+
+    def validate_percentage_input(self, percentage_input: str) -> bool:
+        if not percentage_input.isnumeric() or \
+                not 0 <= int(percentage_input) <= 100:
+            print("Invalid percentage value")
+            return False
+        return True
+
+
+
+    def add_bulk_discount(self) -> None:
+        prompt = """\
+            Please enter X(minimum number of items to buy), Y(discounted price)
+            and item name, separated with commas:
+        """
+        discount_input = self.get_processed_input(prompt)
+        if not self.validate_bulk_discount_input(discount_input):
+            return
+
+        threshold, discounted_price, item = discount_input
+        discount = BulkDiscount(item=item, threshold=int(
+            threshold), new_price=int(discounted_price))
+        self.system.add_discount(discount)
+
+    def validate_bulk_discount_input(self, discount_input: list[str]) -> bool:
+        if not self.validate_number_of_arguments(discount_input, 3):
+            return False
+        threshold, discounted_price, item = discount_input
+        return self.validate_threshold(threshold) and \
+            self.validate_discounted_price_input(discounted_price) and \
+            self.validate_items_existence([item])
+
+    def validate_discounted_price_input(self, discounted_price_input: str) -> bool:
+        if not discounted_price_input.isnumeric():
+            print("Invalid discounted price value")
+            return False
+        return True
+
+
+
     def edit_discount_handler(self):
-        pass
+        selection = self.select_discount_by_index()
+        if selection is None:
+            return
+        discount, index = selection
+        type = discount.get_info_list()[0]
+        match type:
+            case "bundle":
+                self.edit_bundle_discount(index)
+            case "progressive":
+                self.edit_progressive_discount(index)
+            case "bulk":
+                self.edit_bulk_discount(index)
+            case _:
+                print("Unknown discount type.")
+                
+        
+
+    def select_discount_by_index(self) -> tuple[Discount, int] | None:
+        discount_number = input("Please enter active discount number:")
+        discount_number = discount_number.strip()
+
+        try:
+            discount_number = int(discount_number)
+        except ValueError:
+            print("Invalid discount number")
+            return
+
+        index = discount_number - 1
+        if not 0 <= index < len(self.system.discounts):
+            print("Invalid discount number")
+            return
+
+        discount = self.system.discounts[index]
+        print("Selected discount:")
+        print(discount.get_info_str())
+        return discount, index
+
+
+    def edit_bundle_discount(self, discount_index: int) -> None:
+        prompt = """\
+            Please enter information in the format:
+            "<new X value>, <new Y value>
+            (type \"-\" for a field to leave it unchanged):
+            """
+        numeric_data = self.get_processed_input(prompt)
+
+        if not self.validate_number_of_arguments(numeric_data, 2):
+            return
+
+        threshold, quantity_to_pay = numeric_data
+        new_threshold = new_quantity_to_pay = new_bundles = None
+
+        if threshold != '-':
+            if not self.validate_threshold(threshold):
+                return
+            new_threshold = int(threshold)
+
+        if quantity_to_pay != '-':
+            if not self.validate_quantity_to_pay(quantity_to_pay):
+                return
+            new_quantity_to_pay = int(quantity_to_pay)
+
+        choice = input("Do you wish to replace the bundles? [y/N]")
+        if choice in ["y", "yes"]:
+            new_bundles = self.add_bundles()
+
+        self.system.edit_discount(discount_index, new_bundles, [
+                                  new_threshold, new_quantity_to_pay])
+
+    def edit_progressive_discount(self, discount_index: int) -> None:
+        prompt = """\
+            Please enter information in the format:
+            "<new X value>, <new Y value>, <new discounted item name>
+            (type \"-\" for a field to leave it unchanged):\
+            """
+        new_data = self.get_processed_input(prompt)
+        if not self.validate_number_of_arguments(new_data, 3):
+            return
+        threshold, percentage_off_next, item_name = new_data
+        new_threshold = new_percentage = new_item_name = None
+
+        if threshold != '-':
+            if not self.validate_threshold(threshold):
+                return
+            new_threshold = int(threshold)
+        if percentage_off_next != '-':
+            if not self.validate_percentage_input(percentage_off_next):
+                return
+            new_percentage = int(percentage_off_next)
+        if item_name != '-':
+            if not self.validate_items_existence([item_name]):
+                return
+            new_item_name = item_name
+
+        self.system.edit_discount(discount_index, new_item_name, [
+                                  new_threshold, new_percentage])
+
+    def edit_bulk_discount(self, discount_index: int) -> None:
+        prompt = """\
+            Please enter information in the format:
+            "<new X value>, <new Y value>, <new discounted item name>
+            (type \"-\" for a field to leave it unchanged):\
+            """
+        new_data = self.get_processed_input(prompt)
+        if not self.validate_number_of_arguments(new_data, 3):
+            return
+        threshold, discounted_price, item_name = new_data
+        new_threshold = new_discounted_price = new_item_name = None
+
+        if threshold != '-':
+            if not self.validate_threshold(threshold):
+                return
+            new_threshold = int(threshold)
+        if discounted_price != '-':
+            if not self.validate_discounted_price_input(discounted_price):
+                return
+            new_discounted_price = int(discounted_price)
+        if item_name != '-':
+            if not self.validate_items_existence([item_name]):
+                return
+            new_item_name = item_name
+
+        self.system.edit_discount(discount_index, new_item_name, [
+                                  new_threshold, new_discounted_price])
+
+
+
 
     def remove_discount_handler(self):
-        pass
+        selection = self.select_discount_by_index()
+        if selection is None:
+            return
+        discount, index = selection
+        
+        choice = input("Are you sure you want to delete the discount? [y/N]")
+        if choice in ["y", "yes"]:
+            self.system.remove_discount(index)
+
+    def get_processed_input(self, prompt: str = "") -> list[str]:
+        return self.process_input(input(dedent(prompt)))
 
     def process_input(self, input: str) -> list[str]:
         return list(map(lambda input_part: input_part.strip(), input.split(',')))

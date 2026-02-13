@@ -48,7 +48,7 @@ class System:
         if name not in items_names:
             raise ValueError("Cannot remove item: Item not found.")
         item_idx = items_names.index(name)
-        self.items.remove(self.items[item_idx])
+        self.items.pop(item_idx)
 
     def view_catalog_items(self) -> None:
         if len(self.items) == 0:
@@ -66,17 +66,19 @@ class System:
             return
         
         print("Active discounts:")
-        for discount in self.discounts:
-            discount.print_info()       
+        for indexed_discount in enumerate(self.discounts):
+            discount_index = indexed_discount[0] + 1
+            discount_info = indexed_discount[1].get_info_str()
+            print(str(discount_index)+ ". " + discount_info)
 
     def add_discount(self, discount) -> None:
         self.discounts.append(discount)
 
-    def edit_discount(self) -> None:
-        pass
+    def edit_discount(self, discount_index, item_data, numeric_data) -> None:
+        self.discounts[discount_index].update_info_from_list(item_data, numeric_data)
 
-    def remove_discount(self) -> None:
-        pass
+    def remove_discount(self, index) -> None:
+        self.discounts.pop(index)
 
     def add_items_to_basket(self) -> None:
         pass
