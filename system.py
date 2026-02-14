@@ -91,27 +91,16 @@ class System:
             self.basket.items.append(deepcopy(self.items[item_idx]))
 
     def apply_best_discount_combination(self) -> None:
-        basket = self.basket
-        discounts = tuple(enumerate(self.discounts))
-        self.basket = self.find_best_discounted_basket(
-            deepcopy(basket), discounts)
+        discounts = enumerate(self.discounts)
+        baskets = [self.apply_discount_sequence(deepcopy(self.basket), p) for p in permutations(discounts)]
+        self.basket = min(baskets, key=lambda basket: basket.get_discounted_price())
 
-    def find_best_discounted_basket(self, basket: Basket, discounts: tuple[tuple[int, Discount], ...]) -> Basket:
+    def apply_discount_sequence(self, basket: Basket, discounts: tuple[tuple[int, Discount], ...]) -> Basket:
         if not discounts:
             return basket
-        baskets = []
-        for p in permutations(discounts):
-            discount_id, current_discount = p[0]
-            discounted_basket = current_discount.apply_to_basket(
-                deepcopy(basket), discount_id)
-            best_derived_basket = self.find_best_discounted_basket(
-                deepcopy(discounted_basket), p[1:])
-            baskets.append(best_derived_basket)
-        baskets_totals = list(
-            map(lambda basket: basket.get_discounted_price(), baskets))
-        min_total = min(baskets_totals)
-        min_total_index = baskets_totals.index(min_total)
-        return baskets[min_total_index]
+        discount_id, current_discount = discounts[0]
+        current_discount.apply_to_basket(basket, discount_id)
+        return self.apply_discount_sequence(basket, discounts[1:])
 
     def empty_basket(self) -> None:
         self.basket = Basket()

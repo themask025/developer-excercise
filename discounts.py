@@ -6,7 +6,7 @@ from basket import Basket
 
 class Discount(ABC):
     @abstractmethod
-    def apply_to_basket(self, basket: Basket, discount_id: int) -> Basket:
+    def apply_to_basket(self, basket: Basket, discount_id: int) -> None:
         pass
 
     @abstractmethod
@@ -31,22 +31,20 @@ class BundleDiscount(Discount):
         self.threshold = threshold
         self.quantity_to_pay = quantity_to_pay
 
-    def apply_to_basket(self, basket: Basket, discount_id: int) -> Basket:
+    def apply_to_basket(self, basket: Basket, discount_id: int) -> None:
         for bundle in self.bundles:
             eligible_items_indices = self.get_eligible_items_indices(
                 basket, bundle)
             if not eligible_items_indices:
                 continue
-            basket = self.discount_items(
-                basket, eligible_items_indices, bundle, discount_id)
-        return basket
+            self.discount_items(basket, eligible_items_indices, bundle, discount_id)
 
     def get_eligible_items_indices(self, basket: Basket, bundle: list[str] | str) -> list[int]:
         return [index for (index, item) in enumerate(basket.items) if item.name in bundle and item.applied_discount_id is None]
 
-    def discount_items(self, basket: Basket, eligible_indices: list[int], bundle: list[str] | str, discount_id: int) -> Basket:
+    def discount_items(self, basket: Basket, eligible_indices: list[int], bundle: list[str] | str, discount_id: int) -> None:
         if len(eligible_indices) < self.threshold:
-            return basket
+            return
         candidates = eligible_indices[:self.threshold]
         candidates.sort(key=lambda index: basket.items[index].normal_price)
         quantity_to_discount = self.threshold - self.quantity_to_pay
@@ -57,7 +55,6 @@ class BundleDiscount(Discount):
                 basket.items[index].applied_discount_id = discount_id
             if index in cheapest:
                 basket.items[index].discounted_price = 0
-        return basket
 
     def get_info_str(self) -> str:
         info = f"Bundle Discount: {self.threshold} for {self.quantity_to_pay} on {self.bundles[0]}"
@@ -89,21 +86,19 @@ class ProgressiveDiscount(Discount):
         self.threshold = threshold
         self.percentage_off_next = percentage_off_next
 
-    def apply_to_basket(self, basket: Basket, discount_id: int) -> Basket:
+    def apply_to_basket(self, basket: Basket, discount_id: int) -> None:
         eligible_items_indices = self.get_eligible_items_indices(basket)
         if not eligible_items_indices:
-            return basket
-        basket = self.discount_items(
-            basket, eligible_items_indices, discount_id)
-        return basket
+            return
+        self.discount_items(basket, eligible_items_indices, discount_id)
 
     def get_eligible_items_indices(self, basket: Basket) -> list[int]:
         return [index for (index, item) in enumerate(basket.items) if item.name == self.item and item.applied_discount_id is None]
 
-    def discount_items(self, basket: Basket, eligible_indices: list[int], discount_id: int) -> Basket:
+    def discount_items(self, basket: Basket, eligible_indices: list[int], discount_id: int) -> None:
         candidate_group_size = self.threshold + 1
         if len(eligible_indices) < candidate_group_size:
-            return basket
+            return
         candidate_groups_count = len(eligible_indices) // candidate_group_size
         candidates_count = candidate_groups_count * candidate_group_size
         candidates = eligible_indices[:candidates_count]
@@ -116,7 +111,6 @@ class ProgressiveDiscount(Discount):
                 price = basket.items[index].normal_price
                 basket.items[index].discounted_price = price - \
                     round((self.percentage_off_next/100)*price)
-        return basket
 
     def get_info_str(self) -> str:
         return f"Progressive Discount: Buy {self.threshold} Get 1 at {self.percentage_off_next}% off on \"{self.item}\""
@@ -144,26 +138,23 @@ class BulkDiscount(Discount):
         self.threshold = threshold
         self.new_price = new_price
 
-    def apply_to_basket(self, basket: Basket, discount_id: int) -> Basket:
+    def apply_to_basket(self, basket: Basket, discount_id: int) -> None:
         eligible_items_indices = self.get_eligible_items_indices(basket)
         if not eligible_items_indices:
-            return basket
-        basket = self.discount_items(
-            basket, eligible_items_indices, discount_id)
-        return basket
+            return
+        self.discount_items(basket, eligible_items_indices, discount_id)
 
     def get_eligible_items_indices(self, basket: Basket) -> list[int]:
         return [index for (index, item) in enumerate(basket.items) if item.name == self.item and item.applied_discount_id is None]
 
-    def discount_items(self, basket: Basket, eligible_indices: list[int], discount_id: int) -> Basket:
+    def discount_items(self, basket: Basket, eligible_indices: list[int], discount_id: int) -> None:
         if len(eligible_indices) < self.threshold:
-            return basket
+            return
         basket_size = len(basket.items)
         for index in range(basket_size):
             if index in eligible_indices:
                 basket.items[index].applied_discount_id = discount_id
                 basket.items[index].discounted_price = self.new_price
-        return basket
 
     def get_info_str(self) -> str:
         return f"Bulk Purchase: {self.threshold} or more \"{self.item}\" for {self.new_price}c each"
