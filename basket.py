@@ -1,4 +1,3 @@
-from item import Item
 from textwrap import dedent
 
 

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-from item import Item
 from basket import Basket
 
 
@@ -14,7 +13,7 @@ class Discount(ABC):
         pass
 
     @abstractmethod
-    def get_info_list(self) -> list[list[list[str]] | str | int]:
+    def get_type(self) -> str:
         pass
 
     @abstractmethod
@@ -37,7 +36,8 @@ class BundleDiscount(Discount):
                 basket, bundle)
             if not eligible_items_indices:
                 continue
-            self.discount_items(basket, eligible_items_indices, bundle, discount_id)
+            self.discount_items(
+                basket, eligible_items_indices, bundle, discount_id)
 
     def get_eligible_items_indices(self, basket: Basket, bundle: list[str] | str) -> list[int]:
         return [index for (index, item) in enumerate(basket.items) if item.name in bundle and item.applied_discount_id is None]
@@ -62,9 +62,9 @@ class BundleDiscount(Discount):
         for bundle in self.bundles[1:]:
             info = info + f", {bundle}"
         return info
-
-    def get_info_list(self) -> list[list[list[str]] | str | int]:
-        return ['bundle', self.bundles, self.threshold, self.quantity_to_pay]
+    
+    def get_type(self) -> str:
+        return "bundle"
 
     def update_info_from_list(self, item_data: str | list[list[str]] | None, numeric_data: list[int | None]) -> None:
         new_bundles = item_data
@@ -115,8 +115,8 @@ class ProgressiveDiscount(Discount):
     def get_info_str(self) -> str:
         return f"Progressive Discount: Buy {self.threshold} Get 1 at {self.percentage_off_next}% off on \"{self.item}\""
 
-    def get_info_list(self) -> list[list[list[str]] | str | int]:
-        return ['progressive', self.item, self.threshold, self.percentage_off_next]
+    def get_type(self) -> str:
+        return "progressive"
 
     def update_info_from_list(self, item_data: str | list[list[str]] | None, numeric_data: list[int | None]) -> None:
         if item_data is not None:
@@ -158,9 +158,9 @@ class BulkDiscount(Discount):
 
     def get_info_str(self) -> str:
         return f"Bulk Purchase: {self.threshold} or more \"{self.item}\" for {self.new_price}c each"
-
-    def get_info_list(self) -> list[list[list[str]] | str | int]:
-        return ['bulk', self.item, self.threshold, self.new_price]
+    
+    def get_type(self) -> str:
+        return "bulk"
 
     def update_info_from_list(self, item_data: str | list[list[str]] | None, numeric_data: list[int | None]) -> None:
         if item_data is not None:
