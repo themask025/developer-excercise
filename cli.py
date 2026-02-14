@@ -1,14 +1,12 @@
 from textwrap import dedent
 
 from system import System
-from item import Item
 from discounts import Discount, BundleDiscount, ProgressiveDiscount, BulkDiscount
-import discounts
 
 
 class CLI:
-    def __init__(self, system: System = System()) -> None:
-        self.system = system
+    def __init__(self) -> None:
+        self.system = System()
 
     def main_menu(self) -> None:
         print("Grocery Store Till System")
@@ -30,7 +28,7 @@ class CLI:
 
             match user_action:
                 case '1':
-                    self.begin_scanning()
+                    self.scanning_menu()
                 case '2':
                     self.configure_till()
                 case '3':
@@ -40,17 +38,12 @@ class CLI:
 
         print("Exiting the system...")
 
-
-
-
-
-    def begin_scanning(self) -> None:
+    def scanning_menu(self) -> None:
         running_total = 0
         user_action = 0
 
         while user_action != '3':
             print(f"Running total = {running_total}c")
-
             actions_info = """\
                 Available actions:
                 1. Scan items
@@ -64,7 +57,7 @@ class CLI:
 
             match user_action:
                 case '1':
-                    self.scan_items()
+                    running_total = self.scan_items()
                 case '2':
                     self.finalize()
                     break
@@ -76,19 +69,19 @@ class CLI:
 
         print("Returning to main menu...\n")
 
-    def scan_items(self) -> None:
-        items_input = input(
-            "List names of items to scan (separated with commas):")
-        items = self.process_input(items_input)
-
-        print("Scanning items...\n")
+    def scan_items(self) -> int:
+        prompt = "List names of items to scan (separated with commas):"
+        items = self.get_processed_input(prompt)
+        if self.validate_items_existence(items):
+            self.system.add_items_to_basket(items)
+        return self.system.basket.get_total_price()
 
     def finalize(self) -> None:
-        print("Finalizing...\n")
-
-
-
-
+        self.system.apply_best_discount_combination()
+        print(self.system.basket.get_receipt_str())
+        self.system.view_discounts()
+        self.system.empty_basket()
+        input("Proceed...")
 
     def configure_till(self) -> None:
         print("Configuring till...\n")
@@ -161,7 +154,7 @@ class CLI:
         prompt = """\
             Please enter information in the format:
             "<current item name>, <new name>, <new price>, <new category>
-            (type \"-\" for a field to leave it unchanged):\
+            (type \"-\" for a field to leave it unchanged):
             """
         item_input = self.get_processed_input(prompt)
 
@@ -184,13 +177,8 @@ class CLI:
         except ValueError as e:
             print(e)
 
-
-
     def view_discounts_handler(self) -> None:
         self.system.view_discounts()
-
-
-
 
     def add_discount_handler(self) -> None:
         type = input("Please enter discount type (bundle, progressive, bulk):")
@@ -207,20 +195,19 @@ class CLI:
                 print("Invalid discount type.")
                 return
 
-
     def add_bundle_discount(self) -> None:
         prompt = """\
             Please enter X(number of items threshold)
             and Y(number of items to pay for), separated with commas:\n
         """
         discount_input = self.get_processed_input(prompt)
-        
-        print(discount_input)
-        
+
         if not self.validate_bundle_discount_numeric_input(discount_input):
             return
         threshold, quantity_to_pay = discount_input
         bundles = self.add_bundles()
+        if not bundles:
+            return
 
         discount = BundleDiscount(bundles, int(
             threshold), int(quantity_to_pay))
@@ -278,7 +265,7 @@ class CLI:
             name for name in items if name not in existing_names]
         if nonexistent_items:
             print(
-                f"Cannot add discount: items \"{nonexistent_items}\" do not exist.")
+                f"Invalid input: items \"{nonexistent_items}\" do not exist.")
             return False
         return True
 
@@ -291,8 +278,6 @@ class CLI:
             print(f"Cannot add bundle: it overlaps with an existing one")
             return False
         return True
-
-
 
     def add_progressive_discount(self) -> None:
         prompt = """\
@@ -325,8 +310,6 @@ class CLI:
             return False
         return True
 
-
-
     def add_bulk_discount(self) -> None:
         prompt = """\
             Please enter X(minimum number of items to buy), Y(discounted price)
@@ -355,8 +338,6 @@ class CLI:
             return False
         return True
 
-
-
     def edit_discount_handler(self):
         selection = self.select_discount_by_index()
         if selection is None:
@@ -372,8 +353,6 @@ class CLI:
                 self.edit_bulk_discount(index)
             case _:
                 print("Unknown discount type.")
-                
-        
 
     def select_discount_by_index(self) -> tuple[Discount, int] | None:
         discount_number = input("Please enter active discount number:")
@@ -394,7 +373,6 @@ class CLI:
         print("Selected discount:")
         print(discount.get_info_str())
         return discount, index
-
 
     def edit_bundle_discount(self, discount_index: int) -> None:
         prompt = """\
@@ -431,7 +409,7 @@ class CLI:
         prompt = """\
             Please enter information in the format:
             "<new X value>, <new Y value>, <new discounted item name>
-            (type \"-\" for a field to leave it unchanged):\
+            (type \"-\" for a field to leave it unchanged):
             """
         new_data = self.get_processed_input(prompt)
         if not self.validate_number_of_arguments(new_data, 3):
@@ -459,7 +437,7 @@ class CLI:
         prompt = """\
             Please enter information in the format:
             "<new X value>, <new Y value>, <new discounted item name>
-            (type \"-\" for a field to leave it unchanged):\
+            (type \"-\" for a field to leave it unchanged):
             """
         new_data = self.get_processed_input(prompt)
         if not self.validate_number_of_arguments(new_data, 3):
@@ -483,15 +461,12 @@ class CLI:
         self.system.edit_discount(discount_index, new_item_name, [
                                   new_threshold, new_discounted_price])
 
-
-
-
     def remove_discount_handler(self):
         selection = self.select_discount_by_index()
         if selection is None:
             return
         discount, index = selection
-        
+
         choice = input("Are you sure you want to delete the discount? [y/N]")
         if choice in ["y", "yes"]:
             self.system.remove_discount(index)
