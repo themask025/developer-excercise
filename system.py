@@ -6,32 +6,34 @@ from discounts import Discount, BundleDiscount, ProgressiveDiscount, BulkDiscoun
 from basket import Basket
 import validation
 
+
 class System:
     def __init__(self) -> None:
         self.items = []
         self.discounts = []
         self.basket = Basket()
 
-    def add_catalog_item(self, name: str, price: str, category: str) -> None:
+    def add_catalog_item(self, name: str, price: str, category: str) -> bool:
         items_names = self.get_items_names()
         if name in items_names:
-            print("Cannot add item: Item with the same name already exists.")
-            return
+            print("Invalid item name: Item with the same name already exists.")
+            return False
         if not price.isnumeric():
-            print("Cannot add item: Invalid item price.")
-            return
+            print("Invalid item price.")
+            return False
 
         new_item = Item(name=name, category=category, normal_price=int(price))
         self.items.append(new_item)
+        return True
 
-    def update_catalog_item(self, name: str, new_name: str, new_price: str, new_category) -> None:
+    def update_catalog_item(self, name: str, new_name: str, new_price: str, new_category) -> bool:
         items_names = self.get_items_names()
         if name not in items_names:
-            print("Cannot update item info: Item with the given name does not exist.")
-            return
+            print("Invalid item name: Item does not exist.")
+            return False
         if new_name != name and new_name != '-' and new_name in items_names:
-            print("Cannot update item info: Item with the same new name already exists")
-            return
+            print("Invalid item name: Item with the same new name already exists.")
+            return False
 
         item_idx = items_names.index(name)
         item = self.items[item_idx]
@@ -42,24 +44,23 @@ class System:
             item.category = new_category
         if new_price != '-':
             if not new_price.isnumeric():
-                print("Cannot update item info: Invalid new price.")
-                return
+                print("Invalid item price.")
+                return False
             item.normal_price = int(new_price)
+        return True
 
-    def remove_catalog_item(self, name: str) -> None:
+    def remove_catalog_item(self, name: str) -> bool:
         items_names = self.get_items_names()
         if name not in items_names:
-            print("Cannot remove item: Item not found.")
-            return
+            print("Invalid item name: Item does not exist.")
+            return False
         item_idx = items_names.index(name)
         self.items.pop(item_idx)
-
-    def get_items_names(self):
-        return list(map(lambda item: item.name, self.items))
+        return True
 
     def view_catalog_items(self) -> None:
         if not self.items:
-            print("The catalog is empty.")
+            print("The catalog is empty.\n")
             return
 
         print("Catalog items: (name, price, category)")
@@ -69,7 +70,7 @@ class System:
 
     def view_discounts(self) -> None:
         if not self.discounts:
-            print("No active discounts.")
+            print("No active discounts.\n")
             return
 
         print("Active discounts:")
@@ -79,117 +80,94 @@ class System:
             print(str(discount_index) + ". " + discount_info)
         print()
 
-    def add_bundle_discount(self, threshold, quantity_to_pay, bundles) -> None:
+    def add_bundle_discount(self, threshold, quantity_to_pay, bundles) -> bool:
         if not validation.validate_bundle_discount_input(threshold, quantity_to_pay, bundles, self.items):
-            return
-        discount = BundleDiscount(bundles, int(threshold), int(quantity_to_pay))
+            return False
+        discount = BundleDiscount(bundles, int(
+            threshold), int(quantity_to_pay))
         self.discounts.append(discount)
+        return True
 
-    # def validate_new_bundle(self, bundle, discount_id) -> bool:
-    #     if not bundle:
-    #         print("Bundle cannot be empty.")
-    #         return False
-    #     return self.validate_items_existence(bundle) and \
-    #         self.validate_bundle_uniqueness(bundle, discount_id)
-
-
-
-    # def validate_non_overlapping(self, bundles: list[list[str]]) -> bool:
-    #     for bundle in bundles:
-    #         other_bundles_items = [
-    #         item for other_bundle in bundles.remove(bundle) for item in bundle]
-    #     common_items = [
-    #         item for item in current_bundle if item in existing_bundles_items]
-    #     if common_items:
-    #         print(f"Cannot add bundle: it overlaps with an existing one")
-    #         return False
-    #     return True
-
-    # def validate_bundle_uniqueness(self, current_bundle: list[str], discount_id: int) -> bool:
-    #     existing_bundles_items = [
-    #         item for bundle in self.discounts[discount_id].bundles for item in bundle]
-    #     common_items = [
-    #         item for item in current_bundle if item in existing_bundles_items]
-    #     if common_items:
-    #         print(f"Cannot add bundle: it overlaps with an existing one")
-    #         return False
-    #     return True
-
-    def add_progressive_discount(self, threshold: str, percentage_off_next: str, item: str) -> None:
+    def add_progressive_discount(self, threshold: str, percentage_off_next: str, item: str) -> bool:
         if not validation.validate_progressive_discount_input(threshold, percentage_off_next, item, self.items):
-            return
+            return False
         discount = ProgressiveDiscount(
-            item, int(threshold), int(percentage_off_next))        
+            item, int(threshold), int(percentage_off_next))
         self.discounts.append(discount)
+        return True
 
-    def add_bulk_discount(self, threshold: str, discounted_price: str, item: str) -> None:
+    def add_bulk_discount(self, threshold: str, discounted_price: str, item: str) -> bool:
         if not validation.validate_bulk_discount_input(threshold, discounted_price, item, self.items):
-            return
+            return False
         discount = BulkDiscount(item=item, threshold=int(
-            threshold), new_price=int(discounted_price))        
+            threshold), new_price=int(discounted_price))
         self.discounts.append(discount)
+        return True
 
     def update_bundle_discount(self, discount_index: int, bundles: list[list[str]] | None,
-                                  threshold: str, quantity_to_pay: str) -> None:
+                               threshold: str, quantity_to_pay: str) -> bool:
         new_bundles = new_threshold = new_quantity_to_pay = None
-        
+
         if threshold != '-':
             if not validation.validate_threshold(threshold):
-                return
+                return False
             new_threshold = int(threshold)
 
         if quantity_to_pay != '-':
             if not validation.validate_quantity_to_pay(quantity_to_pay):
-                return
+                return False
             new_quantity_to_pay = int(quantity_to_pay)
-            
+
         if bundles is not None:
-            bundles_items = [item_name for bundle in bundles for item_name in bundle]
+            bundles_items = [
+                item_name for bundle in bundles for item_name in bundle]
             if not validation.validate_items_existence(bundles_items, self.items):
-                return
+                return False
             new_bundles = bundles
-            
-        self.discounts[discount_index].update_info_from_list(new_bundles, [new_threshold, new_quantity_to_pay])
-            
-    def update_progressive_discount(self, discount_index: int, item_name: str, threshold: str, percentage: str) -> None:
+
+        self.discounts[discount_index].update_info_from_list(
+            new_bundles, [new_threshold, new_quantity_to_pay])
+        return True
+
+    def update_progressive_discount(self, discount_index: int, item_name: str, threshold: str, percentage: str) -> bool:
         new_threshold = new_percentage = new_item_name = None
 
         if threshold != '-':
             if not validation.validate_threshold(threshold):
-                return
+                return False
             new_threshold = int(threshold)
         if percentage != '-':
             if not validation.validate_percentage_input(percentage):
-                return
+                return False
             new_percentage = int(percentage)
         if item_name != '-':
             if not validation.validate_items_existence([item_name], self.items):
-                return
+                return False
             new_item_name = item_name
-        
-        self.discounts[discount_index].update_info_from_list(new_item_name, [new_threshold, new_percentage])
 
-    def update_bulk_discount(self, discount_index: int, item_name: str, threshold: str, discounted_price: str) -> None:
+        self.discounts[discount_index].update_info_from_list(
+            new_item_name, [new_threshold, new_percentage])
+        return True
+
+    def update_bulk_discount(self, discount_index: int, item_name: str, threshold: str, discounted_price: str) -> bool:
         new_threshold = new_discounted_price = new_item_name = None
 
         if threshold != '-':
             if not validation.validate_threshold(threshold):
-                return
+                return False
             new_threshold = int(threshold)
         if discounted_price != '-':
             if not validation.validate_discounted_price_input(discounted_price):
-                return
+                return False
             new_discounted_price = int(discounted_price)
         if item_name != '-':
             if not validation.validate_items_existence([item_name], self.items):
-                return
+                return False
             new_item_name = item_name
-            
-        self.discounts[discount_index].update_info_from_list(new_item_name, [new_threshold, new_discounted_price])
 
-    def edit_discount(self, discount_index, item_data, numeric_data) -> None:
         self.discounts[discount_index].update_info_from_list(
-            item_data, numeric_data)
+            new_item_name, [new_threshold, new_discounted_price])
+        return True
 
     def remove_discount(self, index) -> None:
         self.discounts.pop(index)
@@ -217,5 +195,8 @@ class System:
         self.basket = Basket()
 
     def find_item_index_by_name(self, item_name: str) -> int:
-        items_names = list(map(lambda item: item.name, self.items))
+        items_names = self.get_items_names()
         return items_names.index(item_name)
+
+    def get_items_names(self):
+        return list(map(lambda item: item.name, self.items))

@@ -16,7 +16,7 @@ class Basket:
         return sum(item_prices)
     
     def get_receipt_str(self) -> str:
-        info = "Item, Category, Normal Price, Discounted Price, Applied Discount\n"
+        info = "Item, Category, Normal Price, Discounted Price, Applied Discount No.\n"
         for item in self.items:
             if item.discounted_price is not None:
                 discounted_price = item.discounted_price
@@ -26,7 +26,7 @@ class Basket:
                 discount_id = item.applied_discount_id + 1
             else:
                 discount_id = 'no discount'
-            info = info + f"{item.name}, {item.category}, {item.normal_price}, {discounted_price}, {discount_id}\n"
+            info = info + f"{item.name}, {item.category}, {item.normal_price}c, {discounted_price}, {discount_id}\n"
         info = info + "----------------------------------\n"
         total = self.get_total_price()
         discounted_total = self.get_discounted_price()
