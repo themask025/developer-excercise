@@ -15,7 +15,7 @@ class System:
 
     def add_catalog_item(self, name: str, price: str, category: str) -> bool:
         items_names = self.get_items_names()
-        if not validation.validate_catalog_item(name, price, items_names):
+        if not validation.validate_catalog_item(name, price, items_names, category):
             return False
         new_item = Item(name=name, category=category, normal_price=int(price))
         self.items.append(new_item)
@@ -23,7 +23,7 @@ class System:
 
     def update_catalog_item(self, name: str, new_name: str, new_price: str, new_category) -> bool:
         items_names = self.get_items_names()
-        if not validation.validate_items_exist([name], items_names):
+        if not validation.validate_items_exist([name], self.items):
             return False
         if new_name != name and new_name != '-':
             if not validation.validate_item_does_not_exist(new_name, items_names):
@@ -35,6 +35,8 @@ class System:
         if new_name != name and new_name != '-':
             item.name = new_name
         if new_category != '-':
+            if not validation.validate_item_category(new_category):
+                return False
             item.category = new_category
         if new_price != '-':
             if not validation.validate_item_price(new_price):
@@ -43,9 +45,9 @@ class System:
         return True
 
     def remove_catalog_item(self, name: str) -> bool:
-        items_names = self.get_items_names()
-        if not validation.validate_items_exist([name], items_names):
+        if not validation.validate_items_exist([name], self.items):
             return False
+        items_names = self.get_items_names()
         item_idx = items_names.index(name)
         self.items.pop(item_idx)
         return True

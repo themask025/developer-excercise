@@ -3,9 +3,10 @@ from typing import Any
 from item import Item
 
 
-def validate_catalog_item(name: str, price: str, existing_items: list[str]) -> bool:
+def validate_catalog_item(name: str, price: str, existing_items: list[str], category: str) -> bool:
     return validate_item_does_not_exist(name, existing_items) and \
-        validate_item_price(price)
+        validate_item_price(price) and \
+        validate_item_category(category)
 
 
 def validate_item_does_not_exist(item_name: str, existing_items_names: list[str]):
@@ -21,6 +22,11 @@ def validate_item_price(price: str) -> bool:
         return False
     return True
 
+def validate_item_category(category: str) -> bool:
+    if category == "":
+        print("Invalid category value.")
+        return False
+    return True
 
 def validate_bundle_discount_input(threshold: str, quantity_to_pay: str, bundles: list[list[str]], existing_items: list[Item]) -> bool:
     bundles_items = [item_name for bundle in bundles for item_name in bundle]
