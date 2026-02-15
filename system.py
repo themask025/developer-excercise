@@ -177,11 +177,9 @@ class System:
             baskets, key=lambda basket: basket.get_discounted_price())
 
     def apply_discount_sequence(self, basket: Basket, discounts: tuple[tuple[int, Discount], ...]) -> Basket:
-        if not discounts:
-            return basket
-        discount_id, current_discount = discounts[0]
-        current_discount.apply_to_basket(basket, discount_id)
-        return self.apply_discount_sequence(basket, discounts[1:])
+        for discount_id, current_discount in discounts:
+            current_discount.apply_to_basket(basket, discount_id)
+        return basket
 
     def empty_basket(self) -> None:
         self.basket = Basket()
