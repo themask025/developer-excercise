@@ -1,5 +1,4 @@
 from textwrap import dedent
-from typing import Any
 
 from system import System
 from discounts import Discount
@@ -64,7 +63,7 @@ class CLI:
                     self.finalize()
                     break
                 case '3':
-                    print("Emptying basket...\n")
+                    self.discard()
                     break
                 case _:
                     print("Invalid action.\n")
@@ -74,16 +73,24 @@ class CLI:
     def scan_items(self) -> int:
         prompt = "List names of items to scan (separated with commas):"
         items = self.get_processed_input(prompt)
-        if validation.validate_items_existence(items, self.system.items):
+        if validation.validate_items_exist(items, self.system.items):
             self.system.add_items_to_basket(items)
         return self.system.basket.get_total_price()
 
     def finalize(self) -> None:
+        if not self.system.basket.items:
+            print("The basket is empty.\n")
+            input("Proceed...")
+            return
         self.system.apply_best_discount_combination()
         self.system.view_discounts()
         print(self.system.basket.get_receipt_str())
         self.system.empty_basket()
         input("Proceed...")
+
+    def discard(self) -> None:
+        print("Emptying basket...\n")
+        self.system.empty_basket()
 
     def configure_till(self) -> None:
         print("Configuring till...\n")
@@ -208,7 +215,7 @@ class CLI:
             print("Could not add discount: First bundle is empty")
             return
         bundles = [first_bundle]
-        choice = input("Do you wish to add more bundles? [y/N]")
+        choice = input("Do you wish to add more bundles? [y/N]: ")
         if choice in ["y", "yes"]:
             bundles.extend(self.add_bundles(existing_bundles=bundles))
         result = self.system.add_bundle_discount(threshold, quantity_to_pay, bundles)
@@ -223,21 +230,11 @@ class CLI:
             if not bundle:
                 print("Cannot add bundle: The bundle is empty")
                 continue
-            if not self.validate_bundle_uniqueness(bundle, existing_bundles):
+            if not validation.validate_bundle_uniqueness(bundle, existing_bundles):
                 continue
             new_bundles.append(bundle)
-            choice = input("Do you wish to add more bundles? [y/N]")
+            choice = input("Do you wish to add more bundles? [y/N]: ")
         return new_bundles
-
-    def validate_bundle_uniqueness(self, current_bundle: list[str], existing_bundles: list[list[str]]) -> bool:
-        existing_bundles_items = [
-            item for bundle in existing_bundles for item in bundle]
-        common_items = [
-            item for item in current_bundle if item in existing_bundles_items]
-        if common_items:
-            print(f"Cannot add bundle: It overlaps with an existing one")
-            return False
-        return True
 
     def add_progressive_discount(self) -> None:
         prompt = """\
@@ -292,7 +289,7 @@ class CLI:
             return
         threshold, quantity_to_pay = numeric_data
 
-        choice = input("Do you want to replace the bundles? [y/N]")
+        choice = input("Do you want to replace the bundles? [y/N]: ")
         if choice in ["y", "yes"]:
             bundles = self.add_bundles(existing_bundles=[])
         else:
@@ -337,7 +334,7 @@ class CLI:
             return
         _, index = selection
 
-        choice = input("Are you sure you want to delete the discount? [y/N]")
+        choice = input("Are you sure you want to delete the discount? [y/N]: ")
         if choice in ["y", "yes"]:
             self.system.remove_discount(index)
         print("Discount removed successfully.")

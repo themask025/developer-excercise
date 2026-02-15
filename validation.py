@@ -3,26 +3,45 @@ from typing import Any
 from item import Item
 
 
+def validate_catalog_item(name: str, price: str, existing_items: list[str]) -> bool:
+    return validate_item_does_not_exist(name, existing_items) and \
+        validate_item_price(price)
+
+
+def validate_item_does_not_exist(item_name: str, existing_items_names: list[str]):
+    if item_name in existing_items_names:
+        print("Invalid item name: Item with the same name already exists.")
+        return False
+    return True
+
+
+def validate_item_price(price: str) -> bool:
+    if not price.isnumeric():
+        print("Invalid item price.")
+        return False
+    return True
+
+
 def validate_bundle_discount_input(threshold: str, quantity_to_pay: str, bundles: list[list[str]], existing_items: list[Item]) -> bool:
     bundles_items = [item_name for bundle in bundles for item_name in bundle]
     return validate_threshold(threshold) and\
         validate_quantity_to_pay(quantity_to_pay) and \
-        validate_items_existence(bundles_items, existing_items)
+        validate_items_exist(bundles_items, existing_items)
 
 
 def validate_bulk_discount_input(threshold: str, discounted_price: str, item: str, existing_items: list[Item]) -> bool:
     return validate_threshold(threshold) and \
         validate_discounted_price_input(discounted_price) and \
-        validate_items_existence([item], existing_items)
+        validate_items_exist([item], existing_items)
 
 
 def validate_progressive_discount_input(threshold: str, percentage_off_next: str, item: str, existing_items: list[Item]) -> bool:
     return validate_threshold(threshold) and \
         validate_percentage_input(percentage_off_next) and \
-        validate_items_existence([item], existing_items)
+        validate_items_exist([item], existing_items)
 
 
-def validate_items_existence(items: list[str], existing_items: list[Item]) -> bool:
+def validate_items_exist(items: list[str], existing_items: list[Item]) -> bool:
     existing_names = list(map(lambda item: item.name, existing_items))
     nonexistent_items = [name for name in items if name not in existing_names]
     if nonexistent_items:
@@ -31,6 +50,17 @@ def validate_items_existence(items: list[str], existing_items: list[Item]) -> bo
         else:
             message = f"Invalid input: items {nonexistent_items} do not exist."
         print(message)
+        return False
+    return True
+
+
+def validate_bundle_uniqueness(current_bundle: list[str], existing_bundles: list[list[str]]) -> bool:
+    existing_bundles_items = [
+        item for bundle in existing_bundles for item in bundle]
+    common_items = [
+        item for item in current_bundle if item in existing_bundles_items]
+    if common_items:
+        print(f"Cannot add bundle: It overlaps with an existing one")
         return False
     return True
 

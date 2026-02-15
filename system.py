@@ -15,25 +15,19 @@ class System:
 
     def add_catalog_item(self, name: str, price: str, category: str) -> bool:
         items_names = self.get_items_names()
-        if name in items_names:
-            print("Invalid item name: Item with the same name already exists.")
+        if not validation.validate_catalog_item(name, price, items_names):
             return False
-        if not price.isnumeric():
-            print("Invalid item price.")
-            return False
-
         new_item = Item(name=name, category=category, normal_price=int(price))
         self.items.append(new_item)
         return True
 
     def update_catalog_item(self, name: str, new_name: str, new_price: str, new_category) -> bool:
         items_names = self.get_items_names()
-        if name not in items_names:
-            print("Invalid item name: Item does not exist.")
+        if not validation.validate_items_exist([name], items_names):
             return False
-        if new_name != name and new_name != '-' and new_name in items_names:
-            print("Invalid item name: Item with the same new name already exists.")
-            return False
+        if new_name != name and new_name != '-':
+            if not validation.validate_item_does_not_exist(new_name, items_names):
+                return False
 
         item_idx = items_names.index(name)
         item = self.items[item_idx]
@@ -43,16 +37,14 @@ class System:
         if new_category != '-':
             item.category = new_category
         if new_price != '-':
-            if not new_price.isnumeric():
-                print("Invalid item price.")
+            if not validation.validate_item_price(new_price):
                 return False
             item.normal_price = int(new_price)
         return True
 
     def remove_catalog_item(self, name: str) -> bool:
         items_names = self.get_items_names()
-        if name not in items_names:
-            print("Invalid item name: Item does not exist.")
+        if not validation.validate_items_exist([name], items_names):
             return False
         item_idx = items_names.index(name)
         self.items.pop(item_idx)
@@ -121,7 +113,7 @@ class System:
         if bundles is not None:
             bundles_items = [
                 item_name for bundle in bundles for item_name in bundle]
-            if not validation.validate_items_existence(bundles_items, self.items):
+            if not validation.validate_items_exist(bundles_items, self.items):
                 return False
             new_bundles = bundles
 
@@ -141,7 +133,7 @@ class System:
                 return False
             new_percentage = int(percentage)
         if item_name != '-':
-            if not validation.validate_items_existence([item_name], self.items):
+            if not validation.validate_items_exist([item_name], self.items):
                 return False
             new_item_name = item_name
 
@@ -161,7 +153,7 @@ class System:
                 return False
             new_discounted_price = int(discounted_price)
         if item_name != '-':
-            if not validation.validate_items_existence([item_name], self.items):
+            if not validation.validate_items_exist([item_name], self.items):
                 return False
             new_item_name = item_name
 
