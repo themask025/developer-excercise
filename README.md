@@ -1,29 +1,18 @@
-# Grocery Store Till System - Developer Exercise
+# Grocery Store Till System - Developer excercise
 
-This exercise is designed to demonstrate a candidate's abilities across a range of competencies in software development. You may use any programming language and frameworks of your choice.
+## Solution overview
+A CLI application, written in Python.
 
-## Instructions
-1. Fork the repository
-2. Implement a solution that meets the requirements below
-3. Share your forked repository with us
+## Functionality
 
-Feel free to use any helper packages/frameworks that you think will be beneficial.
-
-## Business Requirements
-
-### Overview
-Create a grocery store till system that can scan items and calculate the total bill with support for promotional discounts. The currency is **aws** with 100 **clouds** (c) = 1 aws.
-
-### Core Functionality
-
-#### 1. Product Management
-The till must support configuration of products with:
+### Product Management
+The till supports configuration of products with:
 - Name (unique identifier)
 - Price in clouds
 - Category (e.g., "fruit", "vegetable", "bakery")
 
-#### 2. Promotional Rules
-Implement the following discount types:
+### Promotional Rules
+Available discount types:
 
 **Bundle Discount (X for Y)**
 - Customer buys X items from a specified list but only pays for Y of them
@@ -40,45 +29,9 @@ Implement the following discount types:
 - When buying X or more of the same item, each item costs Y clouds instead of the regular price
 - Example: "3 or more apples for 40c each" (regular price might be 50c)
 
-#### 3. Discount Priority and Conflicts
-When an item qualifies for multiple discounts:
-- Each item can only be part of ONE discount
-- The system should apply the discount that gives the customer the best value
-- Document your logic for handling these scenarios
+Unlimited number of discounts of any type can be added.
 
-### Example Scenario
-
-**Product Catalog:**
-Product     Price    Category
-apple       50c      fruit
-banana      40c      fruit
-tomato      30c      vegetable
-potato      26c      vegetable
-bread       120c     bakery
-milk        95c      dairy
-
-**Active Promotions:**
-1. Bundle Discount: 3 for 2 on ["apple", "banana", "tomato"]
-2. Progressive Discount: Buy 1 Get 1 at 50% off on "potato"
-3. Bulk Purchase: 4 or more "bread" for 100c each
-
-**Scanned Basket:**
-
-["apple", "banana", "banana", "potato", "tomato", "banana", "potato"]
-
-**Expected Calculation:**
-1. **Bundle Discount (3 for 2):** "apple", "banana", "banana" → Pay for apple (50c) + banana (40c) = 90c *(one 40c banana is free)*
-2. **Progressive Discount:** "potato", "potato" → 26c + 13c = 39c *(second potato is 50% off)*
-3. **Regular Price:** "tomato" (30c) + "banana" (40c) = 70c
-4. **Total:** 90c + 39c + 70c = **199c = 1 aws and 99 clouds**
-
----
-
-## Technical Requirements
-
-Your solution should demonstrate:
-
-### 1. Till Operations
+### Till Operations
 - Scan items one at a time or in batch
 - Calculate running total
 - Apply promotional discounts automatically
@@ -87,31 +40,21 @@ Your solution should demonstrate:
   - Applied discounts with savings amount
   - Final total in aws and clouds
 
-### 2. Configuration Interface
-Administrators should be able to:
+### Configuration Interface
+Administrators are able to:
 - Add/remove/update products
 - Create/modify/remove promotional rules
 - View current product catalog and active promotions
 
-### 3. Edge Cases to Consider
-- Scanning items not in the catalog
-- Empty baskets
-- Scanning the same item multiple times
-- Multiple overlapping promotions
-- Items that could qualify for multiple discount types
+## Discount conflict resolution logic
 
----
+### Requirements
+When an item qualifies for multiple discounts:
+- Each item can only be part of ONE discount.
+- The system should apply the discount that gives the customer the best value.
 
-## Delivery Format
-
-Choose **one** of the following formats for your solution:
-
-1. **REST API** - With endpoints for configuration and checkout operations
-2. **CLI Application** - Interactive command-line interface
-3. **Web Application** - UI for both customer and administrator views
-
----
-
-## Questions?
-
-Feel free to make reasonable assumptions where requirements are ambiguous, but document them in your README. Good luck! 🛒
+### Solution
+The system applies to the item basket the combination of discounts that gives the customer the best value:
+- The system generates all possible orders of discounts by generating all permutations of the list of active discounts. It then applies the discounts in the different orders to different copies of the basket. 
+- On applying a discount to a basket, the system marks the items used in the discount to prevent their use for next discounts.
+- After applying the discounts from all permutations, the system selects the result basket copy which has the lowest discounted price.
